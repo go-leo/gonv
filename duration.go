@@ -4,6 +4,9 @@ import (
 	"database/sql/driver"
 	"reflect"
 	"time"
+
+	"google.golang.org/protobuf/types/known/durationpb"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // ToDuration casts an interface to a time.Duration type.
@@ -35,31 +38,40 @@ func toDurationE(o any) (time.Duration, error) {
 	}
 	// fast path
 	switch d := o.(type) {
-	case int, int64, int32, int16, int8,
-		uint, uint64, uint32, uint16, uint8,
-		float32, float64,
-		int64er, float64er:
-		duration, err := ToInt64E(o)
-		if err != nil {
-			return failedCastErrValue[time.Duration](o, err)
-		}
-		return time.Duration(duration), nil
+	case time.Duration:
+		return d, nil
+	case *durationpb.Duration:
+		return d.AsDuration(), nil
 	case string:
 		duration, err := time.ParseDuration(d)
 		if err != nil {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return duration, nil
-	case time.Duration:
-		return d, nil
-	case asDurationer:
-		return d.AsDuration(), nil
-	case driver.Valuer:
-		duration, err := d.Value()
+	case []byte:
+		duration, err := time.ParseDuration(string(d))
 		if err != nil {
 			return failedCastErrValue[time.Duration](o, err)
 		}
-		return toDurationE(duration)
+		return duration, nil
+	case int, int64, int32, int16, int8,
+		uint, uint64, uint32, uint16, uint8,
+		float32, float64,
+		int64er, float64er,
+		driver.Valuer,
+		*wrapperspb.DoubleValue,
+		*wrapperspb.FloatValue,
+		*wrapperspb.Int64Value,
+		*wrapperspb.UInt64Value,
+		*wrapperspb.Int32Value,
+		*wrapperspb.UInt32Value,
+		*wrapperspb.StringValue,
+		*wrapperspb.BytesValue:
+		duration, err := intE[time.Duration](o)
+		if err != nil {
+			return failedCastErrValue[time.Duration](o, err)
+		}
+		return time.Duration(duration), nil
 	default:
 		// slow path
 		return toDurationValueE(o)
@@ -67,7 +79,7 @@ func toDurationE(o any) (time.Duration, error) {
 }
 
 func toDurationValueE(o any) (time.Duration, error) {
-	v := IndirectValue(reflect.ValueOf(o))
+	v := indirectValue(reflect.ValueOf(o))
 	switch v.Kind() {
 	case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
 		return time.Duration(v.Int()), nil

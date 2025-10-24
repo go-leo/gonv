@@ -4,31 +4,33 @@ import (
 	"database/sql/driver"
 	"reflect"
 	"strconv"
+
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// ToBool casts an interface to a bool type.
-func ToBool[E ~bool](o any) E {
-	v, _ := ToBoolE[E](o)
+// Bool casts an interface to a bool type.
+func Bool[E ~bool](o any) E {
+	v, _ := BoolE[E](o)
 	return v
 }
 
-// ToBoolE casts an interface to a bool type.
-func ToBoolE[E ~bool](o any) (E, error) {
-	return toBoolE[E](o)
+// BoolE casts an interface to a bool type.
+func BoolE[E ~bool](o any) (E, error) {
+	return boolE[E](o)
 }
 
-// ToBoolSlice casts an interface to a []bool type.
-func ToBoolSlice[S ~[]E, E ~bool](o any) S {
-	v, _ := ToBoolSliceE[S](o)
+// BoolS casts an interface to a []bool type.
+func BoolS[S ~[]E, E ~bool](o any) S {
+	v, _ := BoolSE[S](o)
 	return v
 }
 
-// ToBoolSliceE casts an interface to a []bool type.
-func ToBoolSliceE[S ~[]E, E ~bool](o any) (S, error) {
-	return toSliceE[S](o, toBoolE[E])
+// BoolSE casts an interface to a []bool type.
+func BoolSE[S ~[]E, E ~bool](o any) (S, error) {
+	return toSliceE[S](o, boolE[E])
 }
 
-func toBoolE[E ~bool](o any) (E, error) {
+func boolE[E ~bool](o any) (E, error) {
 	var zero E
 	if o == nil {
 		return zero, nil
@@ -37,27 +39,50 @@ func toBoolE[E ~bool](o any) (E, error) {
 	switch b := o.(type) {
 	case bool:
 		return E(b), nil
+	case *wrapperspb.BoolValue:
+		return E(b.GetValue()), nil
+	case string:
+		v, err := strconv.ParseBool(b)
+		if err != nil {
+			return failedCastErrValue[E](b, err)
+		}
+		return E(v), err
+	case []byte:
+		v, err := strconv.ParseBool(string(b))
+		if err != nil {
+			return failedCastErrValue[E](b, err)
+		}
+		return E(v), err
+	case *wrapperspb.StringValue:
+		v, err := strconv.ParseBool(b.GetValue())
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), err
+	case *wrapperspb.BytesValue:
+		v, err := strconv.ParseBool(string(b.GetValue()))
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), err
 	case int, int64, int32, int16, int8,
 		uint, uint64, uint32, uint16, uint8,
 		float64, float32,
-		int64er, float64er:
+		int64er, float64er,
+		*wrapperspb.Int64Value, *wrapperspb.Int32Value,
+		*wrapperspb.UInt64Value, *wrapperspb.UInt32Value,
+		*wrapperspb.DoubleValue, *wrapperspb.FloatValue:
 		n, err := ToFloat64E(o)
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
 		return n != 0, nil
-	case string:
-		v, err := strconv.ParseBool(o.(string))
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		return E(v), err
 	case driver.Valuer:
 		v, err := b.Value()
 		if err != nil {
-			return failedCastErrValue[E](o, err)
+			return failedCastErrValue[E](b, err)
 		}
-		return toBoolE[E](v)
+		return boolE[E](v)
 	default:
 		// slow path
 		return toBoolValueE[E](o)
@@ -65,7 +90,7 @@ func toBoolE[E ~bool](o any) (E, error) {
 }
 
 func toBoolValueE[E ~bool](o any) (E, error) {
-	v := IndirectValue(reflect.ValueOf(o))
+	v := indirectValue(reflect.ValueOf(o))
 	switch v.Kind() {
 	case reflect.Bool:
 		return E(v.Bool()), nil

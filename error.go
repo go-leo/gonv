@@ -3,7 +3,7 @@ package gonv
 import "fmt"
 
 var (
-	failedCast    = "convx: failed to cast %#v of type %T to %T"
+	failedCast    = "gonv: failed to cast %#v of type %T to %T"
 	failedCastErr = failedCast + ", %w"
 )
 

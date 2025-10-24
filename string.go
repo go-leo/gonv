@@ -8,51 +8,35 @@ import (
 	"html/template"
 	"reflect"
 	"strconv"
+	"time"
+
+	"google.golang.org/protobuf/types/known/durationpb"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// ToString casts an interface to a string type.
-func ToString(o any) string {
-	return ToText[string](o)
-}
-
-// ToStringE casts an interface to a string type.
-func ToStringE(o any) (string, error) {
-	return ToTextE[string](o)
-}
-
-// ToStringSlice casts an interface to a []string type.
-func ToStringSlice(o any) []string {
-	return ToTextSlice[[]string](o)
-}
-
-// ToStringSliceE casts an interface to a []string type.
-func ToStringSliceE(o any) ([]string, error) {
-	return ToTextSliceE[[]string](o)
-}
-
-// ToText casts an interface to a string type.
-func ToText[E ~string](o any) E {
-	v, _ := ToTextE[E](o)
+// String casts an interface to a string type.
+func String[E ~string](o any) E {
+	v, _ := StringE[E](o)
 	return v
 }
 
-// ToTextE casts an interface to a string type.
-func ToTextE[E ~string](o any) (E, error) {
-	return toTextE[E](o)
+// StringE casts an interface to a string type.
+func StringE[E ~string](o any) (E, error) {
+	return stringE[E](o)
 }
 
-// ToTextSlice casts an interface to a []string type.
-func ToTextSlice[S ~[]E, E ~string](o any) S {
-	v, _ := ToTextSliceE[S](o)
+// StringS casts an interface to a []string type.
+func StringS[S ~[]E, E ~string](o any) S {
+	v, _ := StringSE[S](o)
 	return v
 }
 
-// ToTextSliceE casts an interface to a []string type.
-func ToTextSliceE[S ~[]E, E ~string](o any) (S, error) {
-	return toSliceE[S](o, toTextE[E])
+// StringSE casts an interface to a []string type.
+func StringSE[S ~[]E, E ~string](o any) (S, error) {
+	return toSliceE[S](o, stringE[E])
 }
 
-func toTextE[E ~string](o any) (E, error) {
+func stringE[E ~string](o any) (E, error) {
 	var zero E
 	if o == nil {
 		return zero, nil
@@ -115,20 +99,44 @@ func toTextE[E ~string](o any) (E, error) {
 			return failedCastErrValue[E](o, err)
 		}
 		return E(string(v)), nil
+	case json.Number:
+		return E(s.String()), nil
 	case driver.Valuer:
 		v, err := s.Value()
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
-		return toTextE[E](v)
+		return stringE[E](v)
+	case time.Duration:
+		return E(s.String()), nil
+	case *durationpb.Duration:
+		return E(s.AsDuration().String()), nil
+	case *wrapperspb.BoolValue:
+		return E(strconv.FormatBool(s.GetValue())), nil
+	case *wrapperspb.Int64Value:
+		return E(strconv.FormatInt(s.GetValue(), 10)), nil
+	case *wrapperspb.Int32Value:
+		return E(strconv.FormatInt(int64(s.GetValue()), 10)), nil
+	case *wrapperspb.UInt64Value:
+		return E(strconv.FormatUint(s.GetValue(), 10)), nil
+	case *wrapperspb.UInt32Value:
+		return E(strconv.FormatUint(uint64(s.GetValue()), 10)), nil
+	case *wrapperspb.DoubleValue:
+		return E(strconv.FormatFloat(s.GetValue(), 'f', -1, 64)), nil
+	case *wrapperspb.FloatValue:
+		return E(strconv.FormatFloat(float64(s.GetValue()), 'f', -1, 32)), nil
+	case *wrapperspb.StringValue:
+		return E(s.GetValue()), nil
+	case *wrapperspb.BytesValue:
+		return E(s.GetValue()), nil
 	default:
 		// slow path
-		return toTextValueE[E](o)
+		return stringValueE[E](o)
 	}
 }
 
-func toTextValueE[E ~string](o any) (E, error) {
-	v := IndirectValue(reflect.ValueOf(o))
+func stringValueE[E ~string](o any) (E, error) {
+	v := indirectValue(reflect.ValueOf(o))
 	switch v.Kind() {
 	case reflect.Bool:
 		return E(strconv.FormatBool(v.Bool())), nil

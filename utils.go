@@ -19,7 +19,7 @@ func trimZeroDecimal(s string) string {
 	return s
 }
 
-func IndirectValue(v reflect.Value) reflect.Value {
+func indirectValue(v reflect.Value) reflect.Value {
 	for v.Kind() == reflect.Pointer && !v.IsNil() {
 		v = v.Elem()
 	}

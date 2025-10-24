@@ -2,11 +2,14 @@ package gonv
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"reflect"
 	"strconv"
 	"time"
 
 	"golang.org/x/exp/constraints"
+	"google.golang.org/protobuf/types/known/durationpb"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // ToFloat64 casts an interface to a float64 type.
@@ -117,19 +120,19 @@ func toFloatE[E constraints.Float](o any) (E, error) {
 			return failedCastErrValue[E](o, err)
 		}
 		return E(v), nil
+	case []byte:
+		v, err := strconv.ParseFloat(string(f), 64)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), nil
 	case time.Duration:
 		return E(f), nil
 	case time.Weekday:
 		return E(f), nil
 	case time.Month:
 		return E(f), nil
-	case int64er:
-		v, err := f.Int64()
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		return E(v), nil
-	case float64er:
+	case json.Number:
 		v, err := f.Float64()
 		if err != nil {
 			return failedCastErrValue[E](o, err)
@@ -141,6 +144,37 @@ func toFloatE[E constraints.Float](o any) (E, error) {
 			return failedCastErrValue[E](o, err)
 		}
 		return toFloatE[E](v)
+	case *durationpb.Duration:
+		return E(f.AsDuration()), nil
+	case *wrapperspb.BoolValue:
+		if f.GetValue() {
+			return 1, nil
+		}
+		return zero, nil
+	case *wrapperspb.Int64Value:
+		return E(f.GetValue()), nil
+	case *wrapperspb.Int32Value:
+		return E(f.GetValue()), nil
+	case *wrapperspb.UInt64Value:
+		return E(f.GetValue()), nil
+	case *wrapperspb.UInt32Value:
+		return E(f.GetValue()), nil
+	case *wrapperspb.DoubleValue:
+		return E(f.GetValue()), nil
+	case *wrapperspb.FloatValue:
+		return E(f.GetValue()), nil
+	case *wrapperspb.StringValue:
+		v, err := strconv.ParseFloat(f.GetValue(), 64)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), nil
+	case *wrapperspb.BytesValue:
+		v, err := strconv.ParseFloat(string(f.GetValue()), 64)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), nil
 	default:
 		// slow path
 		return toFloatValueE[E](o)
@@ -149,7 +183,7 @@ func toFloatE[E constraints.Float](o any) (E, error) {
 
 func toFloatValueE[E constraints.Float](o any) (E, error) {
 	var zero E
-	v := IndirectValue(reflect.ValueOf(o))
+	v := indirectValue(reflect.ValueOf(o))
 	switch v.Kind() {
 	case reflect.Bool:
 		if v.Bool() {

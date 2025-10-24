@@ -2,146 +2,39 @@ package gonv
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"reflect"
 	"strconv"
 	"time"
 
 	"golang.org/x/exp/constraints"
+	"google.golang.org/protobuf/types/known/durationpb"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// ToUint converts an interface to a uint type.
-func ToUint(o any) uint {
-	v, _ := ToUintE(o)
+// Uint converts an interface to a unsigned integer type.
+func Uint[N constraints.Unsigned](o any) N {
+	v, _ := UintE[N](o)
 	return v
 }
 
-// ToUint64 converts an interface to a uint64 type.
-func ToUint64(o any) uint64 {
-	v, _ := ToUint64E(o)
+// UintE converts an interface to a unsigned integer type.
+func UintE[E constraints.Unsigned](o any) (E, error) {
+	return uintE[E](o)
+}
+
+// UintS converts an interface to an unsigned integer slice type.
+func UintS[S ~[]E, E constraints.Unsigned](o any) S {
+	v, _ := UintSE[S](o)
 	return v
 }
 
-// ToUint32 converts an interface to a uint32 type.
-func ToUint32(o any) uint32 {
-	v, _ := ToUint32E(o)
-	return v
+// UintSE converts an interface to an unsigned integer slice type.
+func UintSE[S ~[]E, E constraints.Unsigned](o any) (S, error) {
+	return toSliceE[S](o, uintE[E])
 }
 
-// ToUint16 converts an interface to a uint16 type.
-func ToUint16(o any) uint16 {
-	v, _ := ToUint16E(o)
-	return v
-}
-
-// ToUint8 converts an interface to a uint8 type.
-func ToUint8(o any) uint8 {
-	v, _ := ToUint8E(o)
-	return v
-}
-
-// ToUintSlice casts an interface to a []uint type.
-func ToUintSlice(o any) []uint {
-	v, _ := ToUintSliceE(o)
-	return v
-}
-
-// ToUint64Slice casts an interface to a []uint64 type.
-func ToUint64Slice(o any) []uint64 {
-	v, _ := ToUint64SliceE(o)
-	return v
-}
-
-// ToUint32Slice casts an interface to a []uint32 type.
-func ToUint32Slice(o any) []uint32 {
-	v, _ := ToUint32SliceE(o)
-	return v
-}
-
-// ToUint16Slice converts an interface to a []uint16 type.
-func ToUint16Slice(o any) []uint16 {
-	v, _ := ToUint16SliceE(o)
-	return v
-}
-
-// ToUint8Slice converts an interface to a []uint8 type.
-func ToUint8Slice(o any) []uint8 {
-	v, _ := ToUint8SliceE(o)
-	return v
-}
-
-// ToUintE converts an interface to a uint type.
-func ToUintE(o any) (uint, error) {
-	return ToUnsignedE[uint](o)
-}
-
-// ToUint64E converts an interface to a uint64 type.
-func ToUint64E(o any) (uint64, error) {
-	return ToUnsignedE[uint64](o)
-}
-
-// ToUint32E converts an interface to a uint32 type.
-func ToUint32E(o any) (uint32, error) {
-	return ToUnsignedE[uint32](o)
-}
-
-// ToUint16E converts an interface to a uint16 type.
-func ToUint16E(o any) (uint16, error) {
-	return ToUnsignedE[uint16](o)
-}
-
-// ToUint8E converts an interface to a uint type.
-func ToUint8E(o any) (uint8, error) {
-	return ToUnsignedE[uint8](o)
-}
-
-// ToUintSliceE casts an interface to a []uint type.
-func ToUintSliceE(a any) ([]uint, error) {
-	return ToUnsignedSliceE[[]uint](a)
-}
-
-// ToUint64SliceE casts an interface to a []uint64 type.
-func ToUint64SliceE(o any) ([]uint64, error) {
-	return ToUnsignedSliceE[[]uint64](o)
-}
-
-// ToUint32SliceE casts an interface to a []int32 type.
-func ToUint32SliceE(o any) ([]uint32, error) {
-	return ToUnsignedSliceE[[]uint32](o)
-}
-
-// ToUint16SliceE converts an interface to a uint16 type.
-func ToUint16SliceE(o any) ([]uint16, error) {
-	return ToUnsignedSliceE[[]uint16](o)
-}
-
-// ToUint8SliceE converts an interface to a uint type.
-func ToUint8SliceE(o any) ([]uint8, error) {
-	return ToUnsignedSliceE[[]uint8](o)
-}
-
-// ToUnsigned converts an interface to a unsigned integer type.
-func ToUnsigned[N constraints.Unsigned](o any) N {
-	v, _ := ToUnsignedE[N](o)
-	return v
-}
-
-// ToUnsignedE converts an interface to a unsigned integer type.
-func ToUnsignedE[E constraints.Unsigned](o any) (E, error) {
-	return toUnsignedE[E](o)
-}
-
-// ToUnsignedSlice converts an interface to an unsigned integer slice type.
-func ToUnsignedSlice[S ~[]E, E constraints.Unsigned](o any) S {
-	v, _ := ToUnsignedSliceE[S](o)
-	return v
-}
-
-// ToUnsignedSliceE converts an interface to an unsigned integer slice type.
-func ToUnsignedSliceE[S ~[]E, E constraints.Unsigned](o any) (S, error) {
-	return toSliceE[S](o, toUnsignedE[E])
-}
-
-func toUnsignedE[E constraints.Unsigned](o any) (E, error) {
+func uintE[E constraints.Unsigned](o any) (E, error) {
 	var zero E
 	if o == nil {
 		return zero, nil
@@ -203,8 +96,11 @@ func toUnsignedE[E constraints.Unsigned](o any) (E, error) {
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
-		if v < 0 {
-			return failedCastValue[E](o)
+		return E(v), nil
+	case []byte:
+		v, err := strconv.ParseUint(trimZeroDecimal(string(u)), 0, 0)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
 		}
 		return E(v), nil
 	case time.Duration:
@@ -222,17 +118,8 @@ func toUnsignedE[E constraints.Unsigned](o any) (E, error) {
 			return failedCastValue[E](o)
 		}
 		return E(u), nil
-	case int64er:
+	case json.Number:
 		v, err := u.Int64()
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		if v < 0 {
-			return failedCastValue[E](o)
-		}
-		return E(v), err
-	case float64er:
-		v, err := u.Float64()
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
@@ -245,14 +132,69 @@ func toUnsignedE[E constraints.Unsigned](o any) (E, error) {
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
-		return toUnsignedE[E](v)
+		r, err := uintE[E](v)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return r, nil
+	case *durationpb.Duration:
+		v := u.AsDuration()
+		if v < 0 {
+			return failedCastValue[E](o)
+		}
+		return E(v), nil
+	case *wrapperspb.BoolValue:
+		if u.GetValue() {
+			return 1, nil
+		}
+		return zero, nil
+	case *wrapperspb.Int64Value:
+		v := u.GetValue()
+		if v < 0 {
+			return failedCastValue[E](o)
+		}
+		return E(v), nil
+	case *wrapperspb.Int32Value:
+		v := u.GetValue()
+		if v < 0 {
+			return failedCastValue[E](o)
+		}
+		return E(v), nil
+	case *wrapperspb.UInt64Value:
+		return E(u.GetValue()), nil
+	case *wrapperspb.UInt32Value:
+		return E(u.GetValue()), nil
+	case *wrapperspb.DoubleValue:
+		v := u.GetValue()
+		if v < 0 {
+			return failedCastValue[E](o)
+		}
+		return E(v), nil
+	case *wrapperspb.FloatValue:
+		v := u.GetValue()
+		if v < 0 {
+			return failedCastValue[E](o)
+		}
+		return E(v), nil
+	case *wrapperspb.StringValue:
+		v, err := strconv.ParseUint(trimZeroDecimal(u.GetValue()), 0, 0)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), nil
+	case *wrapperspb.BytesValue:
+		v, err := strconv.ParseUint(trimZeroDecimal(string(u.GetValue())), 0, 0)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), nil
 	default:
 		return toUnsignedValueE[E](o)
 	}
 }
 
 func toUnsignedValueE[E constraints.Unsigned](o any) (E, error) {
-	v := IndirectValue(reflect.ValueOf(o))
+	v := indirectValue(reflect.ValueOf(o))
 	var zero E
 	switch v.Kind() {
 	case reflect.Bool:

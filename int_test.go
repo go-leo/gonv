@@ -20,7 +20,7 @@ func TestToSignedE(t *testing.T) {
 			want:    10,
 			wantErr: false,
 			toSignedE: func(a any) (any, error) {
-				return ToSignedE[int](a)
+				return IntE[int](a)
 			},
 		},
 		{
@@ -29,7 +29,7 @@ func TestToSignedE(t *testing.T) {
 			want:    int64(10),
 			wantErr: false,
 			toSignedE: func(a any) (any, error) {
-				return ToSignedE[int64](a)
+				return IntE[int64](a)
 			},
 		},
 		{
@@ -38,7 +38,7 @@ func TestToSignedE(t *testing.T) {
 			want:    int32(10),
 			wantErr: false,
 			toSignedE: func(a any) (any, error) {
-				return ToSignedE[int32](a)
+				return IntE[int32](a)
 			},
 		},
 		// Add more test cases for other types
@@ -97,7 +97,7 @@ func TestToSignedSliceE(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ToSignedSliceE[[]int](tt.input)
+			got, err := IntSE[[]int](tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ToSignedSliceE() error = %v, wantErr %v", err, tt.wantErr)
 				return

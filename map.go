@@ -1,9 +1,8 @@
 package gonv
 
 import (
+	"encoding/json"
 	"reflect"
-
-	"github.com/go-leo/gox/encodingx/jsonx"
 )
 
 // ToStringMap casts an interface to a map[string]any type.
@@ -44,32 +43,32 @@ func ToStringMapStringSlice(o any) map[string][]string {
 
 // ToStringMapE casts an interface to a map[string]any type.
 func ToStringMapE(o any) (map[string]any, error) {
-	return toMapE[map[string]any](o, ToTextE[string], func(o any) (any, error) { return o, nil })
+	return toMapE[map[string]any](o, StringE[string], func(o any) (any, error) { return o, nil })
 }
 
 // ToStringMapStringE casts an interface to a map[string]string type.
 func ToStringMapStringE(o any) (map[string]string, error) {
-	return toMapE[map[string]string](o, ToTextE[string], ToTextE[string])
+	return toMapE[map[string]string](o, StringE[string], StringE[string])
 }
 
 // ToStringMapBoolE casts an interface to a map[string]bool type.
 func ToStringMapBoolE(o any) (map[string]bool, error) {
-	return toMapE[map[string]bool](o, ToTextE[string], ToBoolE[bool])
+	return toMapE[map[string]bool](o, StringE[string], BoolE[bool])
 }
 
 // ToStringMapIntE casts an interface to a map[string]int{} type.
 func ToStringMapIntE(o any) (map[string]int, error) {
-	return toMapE[map[string]int](o, ToTextE[string], ToSignedE[int])
+	return toMapE[map[string]int](o, StringE[string], IntE[int])
 }
 
 // ToStringMapInt64E casts an interface to a map[string]int64{} type.
 func ToStringMapInt64E(o any) (map[string]int64, error) {
-	return toMapE[map[string]int64](o, ToTextE[string], ToSignedE[int64])
+	return toMapE[map[string]int64](o, StringE[string], IntE[int64])
 }
 
 // ToStringMapStringSliceE casts an interface to a map[string][]string type.
 func ToStringMapStringSliceE(o any) (map[string][]string, error) {
-	return toMapE[map[string][]string](o, ToTextE[string], ToTextSliceE[[]string])
+	return toMapE[map[string][]string](o, StringE[string], StringSE[[]string])
 }
 
 func toMapE[M ~map[K]V, K comparable, V any](o any, key func(o any) (K, error), val func(o any) (V, error)) (M, error) {
@@ -79,7 +78,7 @@ func toMapE[M ~map[K]V, K comparable, V any](o any, key func(o any) (K, error), 
 	}
 	if s, ok := o.(string); ok {
 		res := make(M)
-		err := jsonx.Unmarshal([]byte(s), &res)
+		err := json.Unmarshal([]byte(s), &res)
 		if err != nil {
 			return failedCastErrValue[M](o, err)
 		}
