@@ -8,16 +8,17 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
-	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // Duration casts an interface to a time.Duration type, ignoring any conversion errors.
 // It returns zero duration if conversion fails.
 //
 // Example:
-//   result := Duration("1h30m") // returns 1 hour 30 minutes
-//   result := Duration(3600) // returns 3600 nanoseconds
-//   result := Duration(int64(3600000000000)) // returns 3600 seconds
+//
+//	result := Duration("1h30m") // returns 1 hour 30 minutes
+//	result := Duration(3600) // returns 3600 nanoseconds
+//	result := Duration(int64(3600000000000)) // returns 3600 seconds
 func Duration(o any) time.Duration {
 	v, _ := DurationE(o)
 	return v
@@ -27,8 +28,9 @@ func Duration(o any) time.Duration {
 // This function is useful when you need to handle conversion errors explicitly.
 //
 // Example:
-//   result, err := DurationE("1h30m") // returns 5400000000000, nil
-//   result, err := DurationE("invalid") // returns 0, error
+//
+//	result, err := DurationE("1h30m") // returns 5400000000000, nil
+//	result, err := DurationE("invalid") // returns 0, error
 func DurationE(o any) (time.Duration, error) {
 	return durationE(o)
 }
@@ -37,7 +39,8 @@ func DurationE(o any) (time.Duration, error) {
 // It's designed for converting slice-like data structures to duration slices.
 //
 // Example:
-//   result := DurationS([]string{"1h", "30m", "45s"}) // returns []time.Duration{3600000000000, 1800000000000, 45000000000}
+//
+//	result := DurationS([]string{"1h", "30m", "45s"}) // returns []time.Duration{3600000000000, 1800000000000, 45000000000}
 func DurationS(o any) []time.Duration {
 	v, _ := DurationSE(o)
 	return v
@@ -47,8 +50,9 @@ func DurationS(o any) []time.Duration {
 // This function is useful when you need to handle conversion errors for slice data explicitly.
 //
 // Example:
-//   result, err := DurationSE([]string{"1h", "30m"}) // returns []time.Duration{3600000000000, 1800000000000}, nil
-//   result, err := DurationSE([]string{"1h", "invalid"}) // returns nil, error
+//
+//	result, err := DurationSE([]string{"1h", "30m"}) // returns []time.Duration{3600000000000, 1800000000000}, nil
+//	result, err := DurationSE([]string{"1h", "invalid"}) // returns nil, error
 func DurationSE(o any) ([]time.Duration, error) {
 	return toSliceE[[]time.Duration](o, DurationE)
 }
@@ -61,7 +65,7 @@ func durationE(o any) (time.Duration, error) {
 		var zero time.Duration
 		return zero, nil
 	}
-	
+
 	// Fast path: direct type assertions for common types
 	switch d := o.(type) {
 	// String conversion using time.ParseDuration
@@ -71,7 +75,7 @@ func durationE(o any) (time.Duration, error) {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return v, nil
-		
+
 	// Byte slice conversion by converting to string first
 	case []byte:
 		v, err := time.ParseDuration(string(d))
@@ -79,7 +83,7 @@ func durationE(o any) (time.Duration, error) {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return v, nil
-		
+
 	// Stringer interface support for custom types that can be represented as strings
 	case fmt.Stringer:
 		v, err := time.ParseDuration(d.String())
@@ -87,11 +91,11 @@ func durationE(o any) (time.Duration, error) {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return v, nil
-		
+
 	// Native time.Duration type
 	case time.Duration:
 		return d, nil
-		
+
 	// Database driver.Valuer interface support
 	case driver.Valuer:
 		v, err := d.Value()
@@ -103,11 +107,11 @@ func durationE(o any) (time.Duration, error) {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return r, nil
-		
+
 	// Protobuf duration type support
 	case *durationpb.Duration:
 		return d.AsDuration(), nil
-		
+
 	// Protobuf string wrapper support
 	case *wrapperspb.StringValue:
 		duration, err := time.ParseDuration(d.GetValue())
@@ -115,7 +119,7 @@ func durationE(o any) (time.Duration, error) {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return duration, nil
-		
+
 	// Protobuf bytes wrapper support
 	case *wrapperspb.BytesValue:
 		duration, err := time.ParseDuration(string(d.GetValue()))
@@ -123,7 +127,7 @@ func durationE(o any) (time.Duration, error) {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return duration, nil
-		
+
 	// Numeric types: convert to int64 first, then create duration
 	case
 		float32, float64,
@@ -141,7 +145,7 @@ func durationE(o any) (time.Duration, error) {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return time.Duration(duration), nil
-		
+
 	// Default case: use reflection-based conversion for complex types
 	default:
 		// slow path
@@ -154,7 +158,7 @@ func durationE(o any) (time.Duration, error) {
 func durationVE(o any) (time.Duration, error) {
 	// Get the underlying value, dereferencing pointers if necessary
 	v := indirectValue(reflect.ValueOf(o))
-	
+
 	// Handle different reflection kinds
 	switch v.Kind() {
 	// Integer types: directly convert to duration (interpreted as nanoseconds)
@@ -162,11 +166,11 @@ func durationVE(o any) (time.Duration, error) {
 		return time.Duration(v.Int()), nil
 	case reflect.Uint, reflect.Uint64, reflect.Uint32, reflect.Uint16, reflect.Uint8:
 		return time.Duration(v.Uint()), nil
-		
+
 	// Floating point types: convert to duration (interpreted as nanoseconds)
 	case reflect.Float64, reflect.Float32:
 		return time.Duration(v.Float()), nil
-		
+
 	// String conversion using time.ParseDuration
 	case reflect.String:
 		dur, err := time.ParseDuration(v.String())
@@ -174,7 +178,7 @@ func durationVE(o any) (time.Duration, error) {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return dur, nil
-		
+
 	// Byte slice conversion (must be []byte)
 	case reflect.Slice:
 		// Ensure it's a byte slice
@@ -186,7 +190,7 @@ func durationVE(o any) (time.Duration, error) {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return dur, nil
-		
+
 	// Unsupported types
 	default:
 		return failedCastValue[time.Duration](o)
