@@ -3,12 +3,14 @@ package gonv
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"time"
 
 	"golang.org/x/exp/constraints"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -45,6 +47,10 @@ func intE[E constraints.Signed](o any) (E, error) {
 			return 1, nil
 		}
 		return zero, nil
+	case float64:
+		return E(s), nil
+	case float32:
+		return E(s), nil
 	case int:
 		return E(s), nil
 	case int64:
@@ -65,58 +71,66 @@ func intE[E constraints.Signed](o any) (E, error) {
 		return E(s), nil
 	case uint8:
 		return E(s), nil
-	case float64:
-		return E(s), nil
-	case float32:
-		return E(s), nil
 	case string:
-		i, err := strconv.ParseInt(trimZeroDecimal(s), 0, 0)
+		v, err := strconv.ParseInt(trimZeroDecimal(s), 0, 0)
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
-		return E(i), nil
+		return E(v), nil
 	case []byte:
-		i, err := strconv.ParseInt(trimZeroDecimal(string(s)), 0, 0)
+		v, err := strconv.ParseInt(trimZeroDecimal(string(s)), 0, 0)
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
-		return E(i), nil
-	case time.Duration:
-		return E(s), nil
-	case time.Weekday:
-		return E(s), nil
-	case time.Month:
-		return E(s), nil
+		return E(v), nil
+	case fmt.Stringer:
+		v, err := strconv.ParseInt(trimZeroDecimal(s.String()), 0, 0)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), nil
 	case json.Number:
 		v, err := s.Int64()
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
 		return E(v), nil
+	case time.Weekday:
+		return E(s), nil
+	case time.Month:
+		return E(s), nil
+	case time.Duration:
+		return E(s), nil
 	case driver.Valuer:
 		v, err := s.Value()
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
-		return intE[E](v)
+		r, err := intE[E](v)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return r, nil
 	case *durationpb.Duration:
 		return E(s.AsDuration()), nil
+	case *timestamppb.Timestamp:
+		return E(s.AsTime().UnixMilli()), nil
 	case *wrapperspb.BoolValue:
 		if s.GetValue() {
 			return 1, nil
 		}
 		return zero, nil
-	case *wrapperspb.Int32Value:
-		return E(s.GetValue()), nil
-	case *wrapperspb.Int64Value:
-		return E(s.GetValue()), nil
-	case *wrapperspb.UInt32Value:
-		return E(s.GetValue()), nil
-	case *wrapperspb.UInt64Value:
+	case *wrapperspb.DoubleValue:
 		return E(s.GetValue()), nil
 	case *wrapperspb.FloatValue:
 		return E(s.GetValue()), nil
-	case *wrapperspb.DoubleValue:
+	case *wrapperspb.Int64Value:
+		return E(s.GetValue()), nil
+	case *wrapperspb.Int32Value:
+		return E(s.GetValue()), nil
+	case *wrapperspb.UInt64Value:
+		return E(s.GetValue()), nil
+	case *wrapperspb.UInt32Value:
 		return E(s.GetValue()), nil
 	case *wrapperspb.StringValue:
 		i, err := strconv.ParseInt(trimZeroDecimal(s.GetValue()), 0, 0)
@@ -153,6 +167,15 @@ func toSignedValueE[E constraints.Signed](o any) (E, error) {
 		return E(v.Float()), nil
 	case reflect.String:
 		i, err := strconv.ParseInt(trimZeroDecimal(v.String()), 0, 0)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(i), nil
+	case reflect.Slice:
+		if v.Type().Elem().Kind() != reflect.Uint8 {
+			return failedCastValue[E](o)
+		}
+		i, err := strconv.ParseInt(trimZeroDecimal(string(v.Bytes())), 0, 0)
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}

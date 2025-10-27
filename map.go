@@ -3,75 +3,92 @@ package gonv
 import (
 	"encoding/json"
 	"reflect"
+
+	"golang.org/x/exp/constraints"
 )
 
-// ToStringMap casts an interface to a map[string]any type.
-func ToStringMap(o any) map[string]any {
-	v, _ := ToStringMapE(o)
+// StringAnyMap casts an interface to a map[string]any type.
+func StringAnyMap[K ~string](o any) map[K]any {
+	v, _ := StringAnyMapE[K](o)
 	return v
 }
 
-// ToStringMapString casts an interface to a map[string]string type.
-func ToStringMapString(o any) map[string]string {
-	v, _ := ToStringMapStringE(o)
+// StringAnyMapE casts an interface to a map[string]any type.
+func StringAnyMapE[K ~string](o any) (map[K]any, error) {
+	return mapE[map[K]any](o, StringE[K], func(o any) (any, error) { return o, nil })
+}
+
+// StringStringMap casts an interface to a map[string]string type.
+func StringStringMap[K ~string, V ~string](o any) map[K]V {
+	v, _ := StringStringMapE[K, V](o)
 	return v
 }
 
-// ToStringMapBool casts an interface to a map[string]bool type.
-func ToStringMapBool(o any) map[string]bool {
-	v, _ := ToStringMapBoolE(o)
+// StringStringMapE casts an interface to a map[string]string type.
+func StringStringMapE[K ~string, V ~string](o any) (map[K]V, error) {
+	return mapE[map[K]V](o, StringE[K], StringE[V])
+}
+
+// StringBoolMap casts an interface to a map[string]bool type.
+func StringBoolMap[K ~string, V ~bool](o any) map[K]V {
+	v, _ := StringBoolMapE[K, V](o)
 	return v
 }
 
-// ToStringMapInt casts an interface to a map[string]int type.
-func ToStringMapInt(o any) map[string]int {
-	v, _ := ToStringMapIntE(o)
+// StringBoolMapE casts an interface to a map[string]bool type.
+func StringBoolMapE[K ~string, V ~bool](o any) (map[K]V, error) {
+	return mapE[map[K]V](o, StringE[K], BoolE[V])
+}
+
+// StringIntMap casts an interface to a map[string]int type.
+func StringFloatMap[K ~string, V constraints.Float](o any) map[K]V {
+	v, _ := StringFloatMapE[K, V](o)
 	return v
 }
 
-// ToStringMapInt64 casts an interface to a map[string]int64 type.
-func ToStringMapInt64(o any) map[string]int64 {
-	v, _ := ToStringMapInt64E(o)
+// StringIntMapE casts an interface to a map[string]int{} type.
+func StringFloatMapE[K ~string, V constraints.Float](o any) (map[K]V, error) {
+	return mapE[map[K]V](o, StringE[K], FloatE[V])
+}
+
+// StringIntMap casts an interface to a map[string]int type.
+func StringIntMap[K ~string, V constraints.Signed](o any) map[K]V {
+	v, _ := StringIntMapE[K, V](o)
 	return v
 }
 
-// ToStringMapStringSlice casts an interface to a map[string][]string type.
-func ToStringMapStringSlice(o any) map[string][]string {
-	v, _ := ToStringMapStringSliceE(o)
+// StringIntMapE casts an interface to a map[string]int{} type.
+func StringIntMapE[K ~string, V constraints.Signed](o any) (map[K]V, error) {
+	return mapE[map[K]V](o, StringE[K], IntE[V])
+}
+
+// StringIntMap casts an interface to a map[string]int type.
+func StringUintMap[K ~string, V constraints.Unsigned](o any) map[K]V {
+	v, _ := StringUintMapE[K, V](o)
 	return v
 }
 
-// ToStringMapE casts an interface to a map[string]any type.
-func ToStringMapE(o any) (map[string]any, error) {
-	return toMapE[map[string]any](o, StringE[string], func(o any) (any, error) { return o, nil })
+// StringIntMapE casts an interface to a map[string]int{} type.
+func StringUintMapE[K ~string, V constraints.Unsigned](o any) (map[K]V, error) {
+	return mapE[map[K]V](o, StringE[K], UintE[V])
 }
 
-// ToStringMapStringE casts an interface to a map[string]string type.
-func ToStringMapStringE(o any) (map[string]string, error) {
-	return toMapE[map[string]string](o, StringE[string], StringE[string])
+// StringStringSliceMap casts an interface to a map[string][]string type.
+func StringStringSliceMap(o any) map[string][]string {
+	v, _ := StringStringSliceMapE(o)
+	return v
 }
 
-// ToStringMapBoolE casts an interface to a map[string]bool type.
-func ToStringMapBoolE(o any) (map[string]bool, error) {
-	return toMapE[map[string]bool](o, StringE[string], BoolE[bool])
+// StringStringSliceMapE casts an interface to a map[string][]string type.
+func StringStringSliceMapE(o any) (map[string][]string, error) {
+	return mapE[map[string][]string](o, StringE[string], StringSE[[]string])
 }
 
-// ToStringMapIntE casts an interface to a map[string]int{} type.
-func ToStringMapIntE(o any) (map[string]int, error) {
-	return toMapE[map[string]int](o, StringE[string], IntE[int])
+func MapE[M ~map[K]V, K comparable, V any](o any, key func(o any) (K, error), val func(o any) (V, error)) (M, error) {
+	return mapE[M, K, V](o, key, val)
 }
 
-// ToStringMapInt64E casts an interface to a map[string]int64{} type.
-func ToStringMapInt64E(o any) (map[string]int64, error) {
-	return toMapE[map[string]int64](o, StringE[string], IntE[int64])
-}
-
-// ToStringMapStringSliceE casts an interface to a map[string][]string type.
-func ToStringMapStringSliceE(o any) (map[string][]string, error) {
-	return toMapE[map[string][]string](o, StringE[string], StringSE[[]string])
-}
-
-func toMapE[M ~map[K]V, K comparable, V any](o any, key func(o any) (K, error), val func(o any) (V, error)) (M, error) {
+func mapE[M ~map[K]V, K comparable, V any](o any, key func(o any) (K, error), val func(o any) (V, error)) (M, error) {
 	var zero M
 	if o == nil {
 		return zero, nil

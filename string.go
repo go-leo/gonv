@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -101,18 +102,34 @@ func stringE[E ~string](o any) (E, error) {
 		return E(string(v)), nil
 	case json.Number:
 		return E(s.String()), nil
+	case time.Weekday:
+		return E(s.String()), nil
+	case time.Month:
+		return E(s.String()), nil
+	case time.Duration:
+		return E(s.String()), nil
+	case time.Time:
+		return E(s.Format(DefaultTimeFormat)), nil
 	case driver.Valuer:
 		v, err := s.Value()
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
-		return stringE[E](v)
-	case time.Duration:
-		return E(s.String()), nil
+		r, err := stringE[E](v)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return r, nil
 	case *durationpb.Duration:
 		return E(s.AsDuration().String()), nil
+	case *timestamppb.Timestamp:
+		return E(s.AsTime().Format(DefaultTimeFormat)), nil
 	case *wrapperspb.BoolValue:
 		return E(strconv.FormatBool(s.GetValue())), nil
+	case *wrapperspb.DoubleValue:
+		return E(strconv.FormatFloat(s.GetValue(), 'f', -1, 64)), nil
+	case *wrapperspb.FloatValue:
+		return E(strconv.FormatFloat(float64(s.GetValue()), 'f', -1, 32)), nil
 	case *wrapperspb.Int64Value:
 		return E(strconv.FormatInt(s.GetValue(), 10)), nil
 	case *wrapperspb.Int32Value:
@@ -121,21 +138,17 @@ func stringE[E ~string](o any) (E, error) {
 		return E(strconv.FormatUint(s.GetValue(), 10)), nil
 	case *wrapperspb.UInt32Value:
 		return E(strconv.FormatUint(uint64(s.GetValue()), 10)), nil
-	case *wrapperspb.DoubleValue:
-		return E(strconv.FormatFloat(s.GetValue(), 'f', -1, 64)), nil
-	case *wrapperspb.FloatValue:
-		return E(strconv.FormatFloat(float64(s.GetValue()), 'f', -1, 32)), nil
 	case *wrapperspb.StringValue:
 		return E(s.GetValue()), nil
 	case *wrapperspb.BytesValue:
 		return E(s.GetValue()), nil
 	default:
 		// slow path
-		return stringValueE[E](o)
+		return stringVE[E](o)
 	}
 }
 
-func stringValueE[E ~string](o any) (E, error) {
+func stringVE[E ~string](o any) (E, error) {
 	v := indirectValue(reflect.ValueOf(o))
 	switch v.Kind() {
 	case reflect.Bool:
@@ -149,10 +162,10 @@ func stringValueE[E ~string](o any) (E, error) {
 	case reflect.String:
 		return E(v.String()), nil
 	case reflect.Slice:
-		if v.Type().Elem().Kind() == reflect.Uint8 {
-			return E(string(v.Bytes())), nil
+		if v.Type().Elem().Kind() != reflect.Uint8 {
+			return failedCastValue[E](o)
 		}
-		return failedCastValue[E](o)
+		return E(string(v.Bytes())), nil
 	default:
 		return failedCastValue[E](o)
 	}

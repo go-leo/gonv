@@ -221,8 +221,14 @@ func toUnsignedValueE[E constraints.Unsigned](o any) (E, error) {
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
-		if u < 0 {
+		return E(u), nil
+	case reflect.Slice:
+		if v.Type().Elem().Kind() != reflect.Uint8 {
 			return failedCastValue[E](o)
+		}
+		u, err := strconv.ParseUint(trimZeroDecimal(string(v.Bytes())), 0, 0)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
 		}
 		return E(u), nil
 	default:

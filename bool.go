@@ -2,6 +2,8 @@ package gonv
 
 import (
 	"database/sql/driver"
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 
@@ -31,16 +33,14 @@ func BoolSE[S ~[]E, E ~bool](o any) (S, error) {
 }
 
 func boolE[E ~bool](o any) (E, error) {
-	var zero E
 	if o == nil {
+		var zero E
 		return zero, nil
 	}
 	// fast path
 	switch b := o.(type) {
 	case bool:
 		return E(b), nil
-	case *wrapperspb.BoolValue:
-		return E(b.GetValue()), nil
 	case string:
 		v, err := strconv.ParseBool(b)
 		if err != nil {
@@ -53,6 +53,24 @@ func boolE[E ~bool](o any) (E, error) {
 			return failedCastErrValue[E](b, err)
 		}
 		return E(v), err
+	case fmt.Stringer:
+		v, err := strconv.ParseBool(b.String())
+		if err != nil {
+			return failedCastErrValue[E](b, err)
+		}
+		return E(v), err
+	case driver.Valuer:
+		v, err := b.Value()
+		if err != nil {
+			return failedCastErrValue[E](b, err)
+		}
+		r, err := boolE[E](v)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return r, nil
+	case *wrapperspb.BoolValue:
+		return E(b.GetValue()), nil
 	case *wrapperspb.StringValue:
 		v, err := strconv.ParseBool(b.GetValue())
 		if err != nil {
@@ -65,31 +83,26 @@ func boolE[E ~bool](o any) (E, error) {
 			return failedCastErrValue[E](o, err)
 		}
 		return E(v), err
-	case int, int64, int32, int16, int8,
-		uint, uint64, uint32, uint16, uint8,
+	case
 		float64, float32,
-		int64er, float64er,
+		int, int64, int32, int16, int8,
+		uint, uint64, uint32, uint16, uint8,
+		json.Number,
+		*wrapperspb.DoubleValue, *wrapperspb.FloatValue,
 		*wrapperspb.Int64Value, *wrapperspb.Int32Value,
-		*wrapperspb.UInt64Value, *wrapperspb.UInt32Value,
-		*wrapperspb.DoubleValue, *wrapperspb.FloatValue:
-		n, err := ToFloat64E(o)
+		*wrapperspb.UInt64Value, *wrapperspb.UInt32Value:
+		n, err := FloatE[float64](o)
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}
 		return n != 0, nil
-	case driver.Valuer:
-		v, err := b.Value()
-		if err != nil {
-			return failedCastErrValue[E](b, err)
-		}
-		return boolE[E](v)
 	default:
 		// slow path
-		return toBoolValueE[E](o)
+		return boolVE[E](o)
 	}
 }
 
-func toBoolValueE[E ~bool](o any) (E, error) {
+func boolVE[E ~bool](o any) (E, error) {
 	v := indirectValue(reflect.ValueOf(o))
 	switch v.Kind() {
 	case reflect.Bool:
@@ -102,6 +115,15 @@ func toBoolValueE[E ~bool](o any) (E, error) {
 		return v.Float() != 0, nil
 	case reflect.String:
 		b, err := strconv.ParseBool(v.String())
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(b), err
+	case reflect.Slice:
+		if v.Type().Elem().Kind() != reflect.Uint8 {
+			return failedCastValue[E](o)
+		}
+		b, err := strconv.ParseBool(string(v.Bytes()))
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}

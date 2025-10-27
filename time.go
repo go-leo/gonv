@@ -10,6 +10,8 @@ import (
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
+var DefaultTimeFormat = time.RFC3339
+
 var TimeFormats = []string{
 	time.Layout,
 	time.ANSIC,
@@ -73,10 +75,6 @@ func toTimeInLocationE(o any, location *time.Location) (time.Time, error) {
 		return zero, nil
 	}
 	switch t := o.(type) {
-	case time.Time:
-		return t, nil
-	case timestamppb.Timestamp:
-		return t.AsTime(), nil
 	case string:
 		for _, format := range TimeFormats {
 			tim, err := time.ParseInLocation(format, t, location)
@@ -96,6 +94,20 @@ func toTimeInLocationE(o any, location *time.Location) (time.Time, error) {
 			return tim, nil
 		}
 		return failedCastValue[time.Time](o)
+	case time.Time:
+		return t, nil
+	case driver.Valuer:
+		v, err := t.Value()
+		if err != nil {
+			return failedCastErrValue[time.Time](o, err)
+		}
+		r, err := toTimeInLocationE(v, location)
+		if err != nil {
+			return failedCastErrValue[time.Time](o, err)
+		}
+		return r, nil
+	case timestamppb.Timestamp:
+		return t.AsTime(), nil
 	case *wrapperspb.StringValue:
 		r, err := toTimeInLocationE(t.GetValue(), location)
 		if err != nil {
@@ -108,19 +120,10 @@ func toTimeInLocationE(o any, location *time.Location) (time.Time, error) {
 			return failedCastErrValue[time.Time](o, err)
 		}
 		return r, nil
-	case driver.Valuer:
-		v, err := t.Value()
-		if err != nil {
-			return failedCastErrValue[time.Time](o, err)
-		}
-		r, err := toTimeInLocationE(v, location)
-		if err != nil {
-			return failedCastErrValue[time.Time](o, err)
-		}
-		return r, nil
-	case int, int64, int32, int16, int8,
-		uint, uint64, uint32, uint16, uint8,
+	case
 		float32, float64,
+		int, int64, int32, int16, int8,
+		uint, uint64, uint32, uint16, uint8,
 		json.Number,
 		*durationpb.Duration,
 		*wrapperspb.Int64Value, *wrapperspb.Int32Value,

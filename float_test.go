@@ -25,7 +25,7 @@ func TestToFloatE(t *testing.T) {
 			wantErr:   false,
 			errTarget: nil,
 			toFloat: func(i any) (any, error) {
-				return ToFloatE[float64](i)
+				return FloatE[float64](i)
 			},
 		},
 		{
@@ -35,7 +35,7 @@ func TestToFloatE(t *testing.T) {
 			wantErr:   false,
 			errTarget: nil,
 			toFloat: func(i any) (any, error) {
-				return ToFloatE[float64](i)
+				return FloatE[float64](i)
 			},
 		},
 		{
@@ -45,7 +45,7 @@ func TestToFloatE(t *testing.T) {
 			wantErr:   false,
 			errTarget: nil,
 			toFloat: func(i any) (any, error) {
-				return ToFloatE[float64](i)
+				return FloatE[float64](i)
 			},
 		},
 		{
@@ -55,7 +55,7 @@ func TestToFloatE(t *testing.T) {
 			wantErr:   false,
 			errTarget: nil,
 			toFloat: func(i any) (any, error) {
-				return ToFloatE[float64](i)
+				return FloatE[float64](i)
 			},
 		},
 		{
@@ -65,7 +65,7 @@ func TestToFloatE(t *testing.T) {
 			wantErr:   true,
 			errTarget: errors.New(failedCast),
 			toFloat: func(i any) (any, error) {
-				return ToFloatE[float64](i)
+				return FloatE[float64](i)
 			},
 		},
 		{
@@ -75,7 +75,7 @@ func TestToFloatE(t *testing.T) {
 			wantErr:   false,
 			errTarget: nil,
 			toFloat: func(i any) (any, error) {
-				return ToFloatE[float64](i)
+				return FloatE[float64](i)
 			},
 		},
 		{
@@ -85,7 +85,7 @@ func TestToFloatE(t *testing.T) {
 			wantErr:   false,
 			errTarget: nil,
 			toFloat: func(i any) (any, error) {
-				return ToFloatE[float64](i)
+				return FloatE[float64](i)
 			},
 		},
 		// Add more test cases for other types
