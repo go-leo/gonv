@@ -6,6 +6,7 @@ package gonv
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -142,18 +143,6 @@ func timeInLocationE(o any, location *time.Location) (time.Time, error) {
 	case time.Time:
 		return t, nil
 
-	// Database driver.Valuer interface support
-	case driver.Valuer:
-		v, err := t.Value()
-		if err != nil {
-			return failedCastErrValue[time.Time](o, err)
-		}
-		r, err := timeInLocationE(v, location)
-		if err != nil {
-			return failedCastErrValue[time.Time](o, err)
-		}
-		return r, nil
-
 	// Protobuf timestamp type support
 	case timestamppb.Timestamp:
 		return t.AsTime(), nil
@@ -187,6 +176,29 @@ func timeInLocationE(o any, location *time.Location) (time.Time, error) {
 			return zero, err
 		}
 		return time.Unix(v, 0), nil
+
+	// Database driver.Valuer interface support
+	case driver.Valuer:
+		v, err := t.Value()
+		if err != nil {
+			return failedCastErrValue[time.Time](o, err)
+		}
+		r, err := timeInLocationE(v, location)
+		if err != nil {
+			return failedCastErrValue[time.Time](o, err)
+		}
+		return r, nil
+
+	// Stringer interface support for custom types that can be represented as strings
+	case fmt.Stringer:
+		for _, format := range TimeFormats {
+			tim, err := time.ParseInLocation(format, t.String(), location)
+			if err != nil {
+				continue
+			}
+			return tim, nil
+		}
+		return failedCastValue[time.Time](o)
 
 	// Unsupported types
 	default:

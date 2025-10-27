@@ -3,6 +3,7 @@ package gonv
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"time"
@@ -179,18 +180,6 @@ func uintE[E constraints.Unsigned](o any) (E, error) {
 		}
 		return E(v), err
 
-	// Database driver.Valuer interface support
-	case driver.Valuer:
-		v, err := u.Value()
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		r, err := uintE[E](v)
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		return r, nil
-
 	// Protobuf duration type support: convert to duration then check for negative values
 	case *durationpb.Duration:
 		v := u.AsDuration()
@@ -241,6 +230,26 @@ func uintE[E constraints.Unsigned](o any) (E, error) {
 		return E(v), nil
 	case *wrapperspb.BytesValue:
 		v, err := strconv.ParseUint(trimZeroDecimal(string(u.GetValue())), 0, 0)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), nil
+
+	// Database driver.Valuer interface support
+	case driver.Valuer:
+		v, err := u.Value()
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		r, err := uintE[E](v)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return r, nil
+
+	// Stringer interface support for custom types that can be represented as strings
+	case fmt.Stringer:
+		v, err := strconv.ParseUint(trimZeroDecimal(string(u.String())), 0, 0)
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}

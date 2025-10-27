@@ -129,26 +129,6 @@ func stringE[E ~string](o any) (E, error) {
 	case template.HTMLAttr:
 		return E(string(s)), nil
 
-	// Stringer and error interfaces
-	case fmt.Stringer:
-		return E(s.String()), nil
-	case error:
-		return E(s.Error()), nil
-
-	// Text and JSON marshaling interfaces
-	case encoding.TextMarshaler:
-		v, err := s.MarshalText()
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		return E(string(v)), nil
-	case json.Marshaler:
-		v, err := s.MarshalJSON()
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		return E(string(v)), nil
-
 	// JSON number: use String() method
 	case json.Number:
 		return E(s.String()), nil
@@ -162,18 +142,6 @@ func stringE[E ~string](o any) (E, error) {
 		return E(s.String()), nil
 	case time.Time:
 		return E(s.Format(DefaultTimeFormat)), nil
-
-	// Database driver.Valuer interface support
-	case driver.Valuer:
-		v, err := s.Value()
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		r, err := stringE[E](v)
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		return r, nil
 
 	// Protobuf types support
 	case *durationpb.Duration:
@@ -200,6 +168,39 @@ func stringE[E ~string](o any) (E, error) {
 		return E(s.GetValue()), nil
 	case *wrapperspb.BytesValue:
 		return E(s.GetValue()), nil
+
+	// Database driver.Valuer interface support
+	case driver.Valuer:
+		v, err := s.Value()
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		r, err := stringE[E](v)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return r, nil
+
+	// Text and JSON marshaling interfaces
+	case encoding.TextMarshaler:
+		v, err := s.MarshalText()
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(string(v)), nil
+
+	case json.Marshaler:
+		v, err := s.MarshalJSON()
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(string(v)), nil
+
+	// Stringer and error interfaces
+	case fmt.Stringer:
+		return E(s.String()), nil
+	case error:
+		return E(s.Error()), nil
 
 	// Default case: use reflection-based conversion for complex types
 	default:

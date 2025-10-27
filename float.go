@@ -128,14 +128,6 @@ func floatE[E constraints.Float](o any) (E, error) {
 		}
 		return E(v), nil
 
-	// Stringer interface support for custom types that can be represented as strings
-	case fmt.Stringer:
-		v, err := strconv.ParseFloat(f.String(), 64)
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		return E(v), nil
-
 	// JSON number support
 	case json.Number:
 		v, err := f.Float64()
@@ -194,6 +186,14 @@ func floatE[E constraints.Float](o any) (E, error) {
 		return E(v), nil
 	case *wrapperspb.BytesValue:
 		v, err := strconv.ParseFloat(string(f.GetValue()), 64)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), nil
+
+	// Stringer interface support for custom types that can be represented as strings
+	case fmt.Stringer:
+		v, err := strconv.ParseFloat(f.String(), 64)
 		if err != nil {
 			return failedCastErrValue[E](o, err)
 		}

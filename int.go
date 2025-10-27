@@ -129,14 +129,6 @@ func intE[E constraints.Signed](o any) (E, error) {
 		}
 		return E(v), nil
 
-	// Stringer interface support for custom types that can be represented as strings
-	case fmt.Stringer:
-		v, err := strconv.ParseInt(trimZeroDecimal(s.String()), 0, 0)
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		return E(v), nil
-
 	// JSON number support
 	case json.Number:
 		v, err := s.Int64()
@@ -152,18 +144,6 @@ func intE[E constraints.Signed](o any) (E, error) {
 		return E(s), nil
 	case time.Duration:
 		return E(s), nil
-
-	// Database driver.Valuer interface support
-	case driver.Valuer:
-		v, err := s.Value()
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		r, err := intE[E](v)
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		return r, nil
 
 	// Protobuf duration type support: convert to duration then to integer
 	case *durationpb.Duration:
@@ -203,6 +183,26 @@ func intE[E constraints.Signed](o any) (E, error) {
 			return failedCastErrValue[E](o, err)
 		}
 		return E(i), nil
+
+	// Database driver.Valuer interface support
+	case driver.Valuer:
+		v, err := s.Value()
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		r, err := intE[E](v)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return r, nil
+
+	// Stringer interface support for custom types that can be represented as strings
+	case fmt.Stringer:
+		v, err := strconv.ParseInt(trimZeroDecimal(s.String()), 0, 0)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return E(v), nil
 
 	// Default case: use reflection-based conversion for complex types
 	default:

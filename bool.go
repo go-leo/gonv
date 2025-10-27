@@ -88,26 +88,6 @@ func boolE[E ~bool](o any) (E, error) {
 		}
 		return E(v), err
 
-	// Stringer interface support for custom types that can be represented as strings
-	case fmt.Stringer:
-		v, err := strconv.ParseBool(b.String())
-		if err != nil {
-			return failedCastErrValue[E](b, err)
-		}
-		return E(v), err
-
-	// Database driver.Valuer interface support
-	case driver.Valuer:
-		v, err := b.Value()
-		if err != nil {
-			return failedCastErrValue[E](b, err)
-		}
-		r, err := boolE[E](v)
-		if err != nil {
-			return failedCastErrValue[E](o, err)
-		}
-		return r, nil
-
 	// Protobuf wrapper types support
 	case *wrapperspb.BoolValue:
 		return E(b.GetValue()), nil
@@ -139,6 +119,26 @@ func boolE[E ~bool](o any) (E, error) {
 		}
 		// Non-zero numeric values are treated as true, zero as false
 		return n != 0, nil
+
+	// Database driver.Valuer interface support
+	case driver.Valuer:
+		v, err := b.Value()
+		if err != nil {
+			return failedCastErrValue[E](b, err)
+		}
+		r, err := boolE[E](v)
+		if err != nil {
+			return failedCastErrValue[E](o, err)
+		}
+		return r, nil
+
+	// Stringer interface support for custom types that can be represented as strings
+	case fmt.Stringer:
+		v, err := strconv.ParseBool(b.String())
+		if err != nil {
+			return failedCastErrValue[E](b, err)
+		}
+		return E(v), err
 
 	// Default case: use reflection-based conversion for complex types
 	default:

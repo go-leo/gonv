@@ -84,29 +84,9 @@ func durationE(o any) (time.Duration, error) {
 		}
 		return v, nil
 
-	// Stringer interface support for custom types that can be represented as strings
-	case fmt.Stringer:
-		v, err := time.ParseDuration(d.String())
-		if err != nil {
-			return failedCastErrValue[time.Duration](o, err)
-		}
-		return v, nil
-
 	// Native time.Duration type
 	case time.Duration:
 		return d, nil
-
-	// Database driver.Valuer interface support
-	case driver.Valuer:
-		v, err := d.Value()
-		if err != nil {
-			return failedCastErrValue[time.Duration](o, err)
-		}
-		r, err := durationE(v)
-		if err != nil {
-			return failedCastErrValue[time.Duration](o, err)
-		}
-		return r, nil
 
 	// Protobuf duration type support
 	case *durationpb.Duration:
@@ -145,6 +125,26 @@ func durationE(o any) (time.Duration, error) {
 			return failedCastErrValue[time.Duration](o, err)
 		}
 		return time.Duration(duration), nil
+
+	// Database driver.Valuer interface support
+	case driver.Valuer:
+		v, err := d.Value()
+		if err != nil {
+			return failedCastErrValue[time.Duration](o, err)
+		}
+		r, err := durationE(v)
+		if err != nil {
+			return failedCastErrValue[time.Duration](o, err)
+		}
+		return r, nil
+
+	// Stringer interface support for custom types that can be represented as strings
+	case fmt.Stringer:
+		v, err := time.ParseDuration(d.String())
+		if err != nil {
+			return failedCastErrValue[time.Duration](o, err)
+		}
+		return v, nil
 
 	// Default case: use reflection-based conversion for complex types
 	default:
